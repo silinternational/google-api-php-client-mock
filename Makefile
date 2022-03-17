@@ -2,7 +2,7 @@ it-now: clean install test
 
 clean:
 	docker-compose kill
-	docker system prune -f
+	docker-compose rm -f
 
 install:
 	docker-compose run --rm cli bash -c "composer install"
