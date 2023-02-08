@@ -126,34 +126,16 @@ class DirectoryTest extends TestCase
             "isEnforcedIn2Sv" => false,
             "isEnrolledIn2Sv" => true,
         ];
-        var_dump($this->getGoogleApiClientVersion());
-        if ($this->getGoogleApiClientVersion() === '1.1.9.0') {
-            $expected['aliases'] = [
-                'aliases' => [
-                    // This is an array representing the Google_Service_Directory_Alias object
-                    [
-                        'alias' => "user_alias1@sil.org",
-                        'kind' => 'personal',
-                        'primaryEmail' => 'user_test1@sil.org',
-                        'etag' => null,
-                        'id' => null,
-                    ],
-                ],
+        $expected['aliases'] = [
+            // This is an array representing the Google_Service_Directory_Alias object
+            [
+                'alias' => "user_alias1@sil.org",
                 'etag' => null,
-                'kind' => null,
-            ];
-        } else {
-            $expected['aliases'] = [
-                // This is an array representing the Google_Service_Directory_Alias object
-                [
-                    'alias' => "user_alias1@sil.org",
-                    'etag' => null,
-                    'id' => null,
-                    'kind' => 'personal',
-                    'primaryEmail' => 'user_test1@sil.org',
-                ]
-            ];
-        }
+                'id' => null,
+                'kind' => 'personal',
+                'primaryEmail' => 'user_test1@sil.org',
+            ]
+        ];
 
         $msg = " *** Bad returned user";
         self::assertEquals($expected, $results, $msg);

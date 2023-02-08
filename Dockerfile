@@ -23,3 +23,4 @@ COPY ./ /data
 
 RUN cd /data && ./composer-install.sh
 RUN mv /data/composer.phar /usr/bin/composer
+RUN /usr/bin/composer install
