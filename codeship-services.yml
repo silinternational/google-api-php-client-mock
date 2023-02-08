@@ -1,0 +1,3 @@
+cli:
+    build: ./
+    working_dir: /data
