@@ -16,16 +16,16 @@ class VerificationCodesTest extends TestCase
     {
         // set up a 2SV user.
         $newUser = $this->setupSampleUser($this->dataFile);
-        $this->assertIsObject($newUser, 'Unable to initialize sample user for generate test');
+        self::assertIsObject($newUser, 'Unable to initialize sample user for generate test');
 
         // generate verification codes
         $directory = new Directory('anyclient', $this->dataFile);
         $returnValue = $directory->verificationCodes->generate($newUser->getPrimaryEmail());
-        $this->assertEmpty($returnValue);
+        self::assertEmpty($returnValue);
 
         // list them
         $returnValue = $directory->verificationCodes->listVerificationCodes($newUser->getPrimaryEmail());
-        $this->assertInstanceOf(
+        self::assertInstanceOf(
             Google_Service_Directory_VerificationCodes::class,
             $returnValue,
             'Expecting Google_Service_Directory_VerificationCodes class'

@@ -2,18 +2,22 @@
 
 namespace SilMock\Google\Service\Directory;
 
+use Exception;
+use Google_Service_Directory_UserName;
+use Google_Service_Directory_Users;
 use SilMock\DataStore\Sqlite\SqliteUtils;
 use Google_Service_Directory_User;
+use Google_Service_Directory_Alias as Alias;
 
 class UsersResource
 {
-    private $_dbFile;  // path (with file name) for the Sqlite database
+    private $dbfile;  // path (with file name) for the Sqlite database
     private $_dataType = 'directory'; // string to put in the 'type' field in the database
     private $_dataClass = 'user'; // string to put in the 'class' field in the database
 
     public function __construct($dbFile = null)
     {
-        $this->_dbFile = $dbFile;
+        $this->dbfile = $dbFile;
     }
 
     /**
@@ -30,7 +34,7 @@ class UsersResource
             return null;
         }
 
-        $sqliteUtils = new SqliteUtils($this->_dbFile);
+        $sqliteUtils = new SqliteUtils($this->dbfile);
         $sqliteUtils->deleteRecordById($userEntry['id']);
         return true;
     }
@@ -44,7 +48,7 @@ class UsersResource
      * https://developers.google.com/admin-sdk/directory/v1/reference/users/get
      *
      * @param string $userKey - The Email or immutable Id of the user
-     * @return \Google_Service_Directory_User|null -- built from db if exists,
+     * @return Google_Service_Directory_User|null -- built from db if exists,
      *                                                null otherwise
      */
     public function get($userKey)
@@ -59,14 +63,14 @@ class UsersResource
             }
         }
 
-        $newUser = new \Google_Service_Directory_User();
+        $newUser = new Google_Service_Directory_User();
         ObjectUtils::initialize($newUser, json_decode($userEntry['data'], true));
         
         // find its aliases in the database and populate its aliases property
         $aliases = $this->getAliasesForUser($userKey);
 
         if ($aliases) {
-            $foundAliases = array();
+            $foundAliases = [];
             foreach ($aliases['aliases'] as $nextAlias) {
                 $foundAliases[] = $nextAlias['alias'];
             }
@@ -89,7 +93,7 @@ class UsersResource
             $key = 'id';
         }
         
-        $usersAliases = new UsersAliasesResource($this->_dbFile);
+        $usersAliases = new UsersAliasesResource($this->dbfile);
         return $usersAliases->fetchAliasesByUser($key, $userKey);
     }
     
@@ -141,7 +145,7 @@ class UsersResource
     
     protected function getAllDbUsers()
     {
-        $sqliteUtils = new SqliteUtils($this->_dbFile);
+        $sqliteUtils = new SqliteUtils($this->dbfile);
         return $sqliteUtils->getData($this->_dataType, $this->_dataClass);
     }
     
@@ -151,19 +155,19 @@ class UsersResource
      *
      * @param Google_Service_Directory_User|UsersResource $postBody
      * @return Google_Service_Directory_User|null
-     * @throws \Exception with code 201407101120, if the user already exists
+     * @throws Exception with code 201407101120, if the user already exists
      */
     public function insert($postBody)
     {
-        $defaults = array(
-            'id' => str_replace(array(' ', '.'), '', microtime()),
+        $defaults = [
+            'id' => str_replace([' ', '.'], '', microtime()),
             'suspended' => false,
             'changePasswordAtNextLogin' => false,
             'isAdmin' => false,
             'isDelegatedAdmin' => false,
             'lastLoginTime' => time(),
             'creationTime' => time(),
-        );
+        ];
 
         // array_merge will not work, since $postBody is an object which only
         // implements ArrayAccess
@@ -176,23 +180,23 @@ class UsersResource
         $currentUser = $this->get($postBody->primaryEmail);
 
         if ($currentUser) {
-            throw new \Exception(
+            throw new Exception(
                 "Account already exists: " . $postBody['primaryEmail'],
                 201407101120
             );
         }
 
-        $newUser = new \Google_Service_Directory_User();
+        $newUser = new Google_Service_Directory_User();
         ObjectUtils::initialize($newUser, $postBody);
         $userData = json_encode($newUser);
 
         // record the user in the database
-        $sqliteUtils = new SqliteUtils($this->_dbFile);
+        $sqliteUtils = new SqliteUtils($this->dbfile);
         $sqliteUtils->recordData($this->_dataType, $this->_dataClass, $userData);
 
         // record the user's aliases in the database
         if ($postBody->aliases) {
-            $usersAliases = new UsersAliasesResource($this->_dbFile);
+            $usersAliases = new UsersAliasesResource($this->dbfile);
 
             foreach ($postBody->aliases as $alias) {
                 $newAlias = new Alias();
@@ -214,13 +218,13 @@ class UsersResource
      * @param string $userKey - The Email or immutable Id of the user.
      * @param Google_Service_Directory_User $postBody
      * @return Google_Service_Directory_User|null
-     * @throws \Exception with code 201407101130 if a matching user is not found
+     * @throws Exception with code 201407101130 if a matching user is not found
      */
     public function update($userKey, $postBody)
     {
         $userEntry = $this->getDbUser($userKey);
         if ($userEntry === null) {
-            throw new \Exception(
+            throw new Exception(
                 "Account doesn't exist: " . json_encode($userKey, true),
                 201407101130
             );
@@ -240,7 +244,7 @@ class UsersResource
         }
 
         // Delete the user's old aliases before adding the new ones
-        $usersAliases = new UsersAliasesResource($this->_dbFile);
+        $usersAliases = new UsersAliasesResource($this->dbfile);
         $aliasesObject = $usersAliases->listUsersAliases($userKey);
 
         if ($aliasesObject && isset($aliasesObject['aliases'])) {
@@ -249,13 +253,13 @@ class UsersResource
             }
         }
 
-        $sqliteUtils = new SqliteUtils($this->_dbFile);
+        $sqliteUtils = new SqliteUtils($this->dbfile);
         $sqliteUtils->updateRecordById($userEntry['id'], json_encode($dbUserProps));
 
         // Save the user's aliases
         if (isset($postBody->aliases) && $postBody->aliases) {
             foreach ($postBody->aliases as $alias) {
-                $newAlias = new \Google_Service_Directory_Alias();
+                $newAlias = new Alias();
                 $newAlias->alias = $alias;
                 $newAlias->kind = "personal";
                 $newAlias->primaryEmail = $postBody->primaryEmail;
@@ -281,7 +285,7 @@ class UsersResource
             $key = 'id';
         }
 
-        $sqliteUtils = new SqliteUtils($this->_dbFile);
+        $sqliteUtils = new SqliteUtils($this->dbfile);
         return $sqliteUtils->getRecordByDataKey(
             $this->_dataType,
             $this->_dataClass,
@@ -303,11 +307,11 @@ class UsersResource
      *            And baz is what to partially match on.
      *            The '*' syntax is ignored.
      *
-     * @return \Google_Service_Directory_Users
+     * @return Google_Service_Directory_Users
      */
     public function listUsers($parameters = [])
     {
-        $results = new \Google_Service_Directory_Users();
+        $results = new Google_Service_Directory_Users();
         if (!key_exists('domain', $parameters)) {
             $parameters['domain'] = 'ZZZZZZZ';
         }
@@ -318,22 +322,26 @@ class UsersResource
             $parameters['query'] = '';
         }
         $parameters['query'] = urldecode($parameters['query']);
-        $sqliteUtils = new SqliteUtils($this->_dbFile);
+        $sqliteUtils = new SqliteUtils($this->dbfile);
         $allData = $sqliteUtils->getData($this->_dataType, $this->_dataClass);
         foreach ($allData as $userRecord) {
             $userEntry = json_decode($userRecord['data'], true);
             if ($this->doesUserMatch($userEntry, $parameters['query'])) {
-                /** @var \Google_Service_Directory_UserName $newName */
-                $newName = new \Google_Service_Directory_UserName(array(
-                    'familyName' => $userEntry['name']['familyName'],
-                    'fullName'   => $userEntry['name']['fullName'],
-                    'givenName'  => $userEntry['name']['givenName'],
-                ));
-                /** @var \Google_Service_Directory_User $newEntry */
-                $newEntry = new \Google_Service_Directory_User(array(
-                    'primaryEmail' => $userEntry['primaryEmail'],
-                    'customerId' => $userEntry['primaryEmail'],
-                ));
+                /** @var Google_Service_Directory_UserName $newName */
+                $newName = new Google_Service_Directory_UserName(
+                    [
+                        'familyName' => $userEntry['name']['familyName'],
+                        'fullName'   => $userEntry['name']['fullName'],
+                        'givenName'  => $userEntry['name']['givenName'],
+                    ]
+                );
+                /** @var Google_Service_Directory_User $newEntry */
+                $newEntry = new Google_Service_Directory_User(
+                    [
+                        'primaryEmail' => $userEntry['primaryEmail'],
+                        'customerId' => $userEntry['primaryEmail'],
+                    ]
+                );
                 $newEntry->setName($newName);
                 
                 $allResultsUsers = $results->getUsers();
@@ -359,7 +367,7 @@ class UsersResource
         if (isset($entry[$field])) {
             $checkValue = $entry[$field];
             if (is_array($checkValue) && $field === 'name') {
-                $checkIndividualValues = array();
+                $checkIndividualValues = [];
                 if (isset($checkValue['givenName'])) {
                     $checkIndividualValues[] = $checkValue['givenName'];
                 }
@@ -377,7 +385,7 @@ class UsersResource
                     }
                 }
             } elseif (is_array($checkValue)) {
-                throw new \Exception(
+                throw new Exception(
                     "Did not expect something other than name as an array. Got VALUE: " . var_dump($checkValue)
                 );
             }
@@ -392,7 +400,7 @@ class UsersResource
             $checkValue = '';
         }
         if (! is_string($checkValue)) {
-            throw new \Exception(sprintf(
+            throw new Exception(sprintf(
                 "Expecting a string.\nGot Entry: %s\nGot Field: %s\nGot VALUE: %s",
                 var_dump($entry),
                 var_dump($field),

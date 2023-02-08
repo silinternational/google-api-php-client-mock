@@ -31,7 +31,7 @@ trait SampleUser
             $newAlias->alias = 'user_alias1@sil.org';
             $newAlias->setKind("personal");
             $newAlias->primaryEmail = $newUser->primaryEmail;
-            $newAliases->setAliases(array($newAlias));
+            $newAliases->setAliases([$newAlias]);
             $newUser->aliases = $newAliases; // bool
         }
 

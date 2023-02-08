@@ -9,16 +9,13 @@
     "license": "MIT",
     "authors": [
         {
-            "name": "Steve Bagwell"
-        },
-        {
-            "name": "Phillip Shipley"
+            "name": "Mark Tompsett"
         },
         {
             "name": "Matt Henderson"
         },
         {
-            "name": "Mark Tompsett"
+            "name": "Steve Bagwell"
         }
     ],
     "require": {
@@ -26,8 +23,8 @@
         "ext-json": "*",
         "ext-mbstring": "*",
         "ext-pdo": "*",
-        "google/apiclient": "^v2.9.1",
-        "google/apiclient-services": "^0.176"
+        "google/apiclient": "^v2.13.0",
+        "google/apiclient-services": "^v0.282.0"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.5.4"

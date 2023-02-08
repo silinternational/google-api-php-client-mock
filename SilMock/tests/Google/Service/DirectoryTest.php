@@ -2,6 +2,7 @@
 
 namespace SilMock\tests\Google\Service;
 
+use Composer\InstalledVersions;
 use PHPUnit\Framework\TestCase;
 use Google_Service_Directory_Alias;
 use Google_Service_Directory_User;
@@ -19,7 +20,7 @@ class DirectoryTest extends TestCase
     public function getProperties($object, $propKeys = null)
     {
         if ($propKeys === null) {
-            $propKeys = array(
+            $propKeys = [
                 "changePasswordAtNextLogin",
                 "hashFunction",
                 "id",
@@ -29,10 +30,10 @@ class DirectoryTest extends TestCase
                 "isEnforcedIn2Sv",
                 "isEnrolledIn2Sv",
                 "aliases",
-            );
+            ];
         }
 
-        $outArray = array();
+        $outArray = [];
 
         foreach ($propKeys as $key) {
             $outArray[$key] = $object->$key;
@@ -43,13 +44,13 @@ class DirectoryTest extends TestCase
 
     public function testDirectory()
     {
-        $expectedKeys = array(
+        $expectedKeys = [
             'asps',
             'tokens',
             'users',
             'users_aliases',
             'verificationCodes',
-        );
+        ];
         $errorMessage = " *** Directory was not initialized properly";
         
         $directory = new Directory('whatever', $this->dataFile);
@@ -57,8 +58,8 @@ class DirectoryTest extends TestCase
         $directoryAsJson = json_encode($directory);
         $directoryInfo = json_decode($directoryAsJson, true);
         foreach ($expectedKeys as $expectedKey) {
-            $this->assertArrayHasKey($expectedKey, $directoryInfo, $errorMessage);
-            $this->assertEmpty($directoryInfo[$expectedKey], $errorMessage);
+            self::assertArrayHasKey($expectedKey, $directoryInfo, $errorMessage);
+            self::assertEmpty($directoryInfo[$expectedKey], $errorMessage);
         }
     }
 
@@ -67,7 +68,7 @@ class DirectoryTest extends TestCase
         $newUser = $this->setupSampleUser($this->dataFile, false);
         $results = $this->getProperties($newUser);
 
-        $expected = array(
+        $expected = [
             "changePasswordAtNextLogin" => false,
             "hashFunction" => "SHA-1",
             "id" => 999991,
@@ -77,9 +78,9 @@ class DirectoryTest extends TestCase
             "isEnforcedIn2Sv" => false,
             "isEnrolledIn2Sv" => true,
             "aliases" => null,
-        );
+        ];
         $msg = " *** Bad returned user";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
 
         $sqliteClass = new SqliteUtils($this->dataFile);
         $sqliteData = $sqliteClass->getData('', '');
@@ -101,7 +102,12 @@ class DirectoryTest extends TestCase
         );
 
         $msg = " *** Bad data from sqlite database";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
+    }
+
+    public function getGoogleApiClientVersion(): string
+    {
+        return InstalledVersions::getVersion('google/apiclient');
     }
 
     public function testUsersInsert_WithAlias()
@@ -109,7 +115,8 @@ class DirectoryTest extends TestCase
         $newUser = $this->setupSampleUser($this->dataFile, true);
 
         $results =  $this->getProperties($newUser);
-        $expected = array(
+
+        $expected = [
             "changePasswordAtNextLogin" => false,
             "hashFunction" => "SHA-1",
             "id" => 999991,
@@ -118,41 +125,62 @@ class DirectoryTest extends TestCase
             "suspended" => false,
             "isEnforcedIn2Sv" => false,
             "isEnrolledIn2Sv" => true,
-            "aliases" => array(
-                'etag' => null,
-                'kind' => null,
-                'aliases' => array(
-                    array(
+        ];
+        var_dump($this->getGoogleApiClientVersion());
+        if ($this->getGoogleApiClientVersion() === '1.1.9.0') {
+            $expected['aliases'] = [
+                'aliases' => [
+                    // This is an array representing the Google_Service_Directory_Alias object
+                    [
                         'alias' => "user_alias1@sil.org",
+                        'kind' => 'personal',
+                        'primaryEmail' => 'user_test1@sil.org',
                         'etag' => null,
                         'id' => null,
-                        'kind' => 'personal',
-                        'primaryEmail' => 'user_test1@sil.org')),
-            ),
-        );
-        $msg = " *** Bad returned user";
-        $this->assertEquals($expected, $results, $msg);
+                    ],
+                ],
+                'etag' => null,
+                'kind' => null,
+            ];
+        } else {
+            $expected['aliases'] = [
+                // This is an array representing the Google_Service_Directory_Alias object
+                [
+                    'alias' => "user_alias1@sil.org",
+                    'etag' => null,
+                    'id' => null,
+                    'kind' => 'personal',
+                    'primaryEmail' => 'user_test1@sil.org',
+                ]
+            ];
+        }
 
+        $msg = " *** Bad returned user";
+        self::assertEquals($expected, $results, $msg);
+
+        // The last entry is an alias entry.
         $sqliteClass = new SqliteUtils($this->dataFile);
         $sqliteData = $sqliteClass->getData('', '');
         $sqliteDataValues = array_values($sqliteData);
         $lastDataEntry = end($sqliteDataValues);
         $lastAliases = json_decode($lastDataEntry['data'], true);
 
-        $results = $lastAliases['aliases']['aliases'];
+        if ($this->getGoogleApiClientVersion() === '1.1.9.0') {
+            $results = $lastAliases['aliases']['aliases'][0];
+        } else {
+            $results = $lastAliases['alias'];
+        }
 
-        $expected = array(
-            array(
-                "alias" => "user_alias1@sil.org",
-                "kind" => "personal",
-                "primaryEmail" => "user_test1@sil.org",
-                'etag' => null,
-                'id' => null,
-            ),
-        );
+        $expected = [
+            "alias" => "user_alias1@sil.org",
+            "kind" => "personal",
+            "primaryEmail" => "user_test1@sil.org",
+            'etag' => null,
+            'id' => null,
+        ];
 
         $msg = " *** Bad data from sqlite database";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function getFixtures()
@@ -173,15 +201,18 @@ class DirectoryTest extends TestCase
         $alias6->setAlias("users_alias6@sil.org");
         $alias6->setId("1");
 
-        $fixtures = array(
-            array('directory', 'user', '{"primaryEmail":"user_test1@sil.org",' .
-                                       '"id":"999990"}'),
-            array('directory', 'users_alias', json_encode($alias2)),
-            array('app_engine', 'webapp', 'webapp3 test data'),
-            array('directory', 'user', $user4Data),
-            array('directory', 'user', 'user5 test data'),
-            array('directory', 'users_alias', json_encode($alias6)),
-        );
+        $fixtures = [
+            [
+                'directory',
+                'user',
+                '{"primaryEmail":"user_test1@sil.org","id":"999990"}'
+            ],
+            ['directory', 'users_alias', json_encode($alias2)],
+            ['app_engine', 'webapp', 'webapp3 test data'],
+            ['directory', 'user', $user4Data],
+            ['directory', 'user', 'user5 test data'],
+            ['directory', 'users_alias', json_encode($alias6)],
+        ];
 
         return $fixtures;
     }
@@ -208,7 +239,7 @@ class DirectoryTest extends TestCase
 
         $primaryEmail = 'user_test4@sil.org';
 
-        $userData = array(
+        $userData = [
             "changePasswordAtNextLogin" => false,
             "hashFunction" => "SHA-1",
             "id" => 999991,
@@ -218,7 +249,7 @@ class DirectoryTest extends TestCase
             "isEnforcedIn2Sv" => false,
             "isEnrolledIn2Sv" => true,
             "aliases" => null,
-        );
+        ];
 
         $fixtures = $this->getFixtures();
         $fixturesClass->addFixtures($fixtures);
@@ -229,7 +260,7 @@ class DirectoryTest extends TestCase
         $results = $this->getProperties($newUser);
         $expected = $userData;
         $msg = " *** Bad user data returned";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testUsersGet_ById()
@@ -239,7 +270,7 @@ class DirectoryTest extends TestCase
 
         $userId = '999991';
 
-        $userData = array(
+        $userData = [
             "changePasswordAtNextLogin" => false,
             "hashFunction" => "SHA-1",
             "id" => $userId,
@@ -249,7 +280,7 @@ class DirectoryTest extends TestCase
             "isEnforcedIn2Sv" => false,
             "isEnrolledIn2Sv" => true,
             "aliases" => null,
-        );
+        ];
 
         $fixtures = $this->getFixtures();
         $fixturesClass->addFixtures($fixtures);
@@ -260,7 +291,7 @@ class DirectoryTest extends TestCase
         $results = $this->getProperties($newUser);
         $expected = $userData;
         $msg = " *** Bad user data returned";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
 
@@ -274,7 +305,7 @@ class DirectoryTest extends TestCase
         $userId = '999991';
         $email = "user_test4@sil.org";
 
-        $userData = array(
+        $userData = [
             "changePasswordAtNextLogin" => false,
             "hashFunction" => "SHA-1",
             "id" => $userId,
@@ -283,17 +314,17 @@ class DirectoryTest extends TestCase
             "suspended" => false,
             "isEnforcedIn2Sv" => false,
             "isEnrolledIn2Sv" => true,
-            "aliases" => array("users_alias1A@sil.org", "users_alias1B@sil.org"),
-        );
+            "aliases" => ["users_alias1A@sil.org", "users_alias1B@sil.org"],
+        ];
 
 
         $aliasA = $this->getAliasFixture("users_alias1A@sil.org", $email, null);
         $aliasB = $this->getAliasFixture("users_alias1B@sil.org", $email, null);
 
-        $newFixtures = array(
-            array('directory', 'users_alias', json_encode($aliasA)),
-            array('directory', 'users_alias', json_encode($aliasB)),
-        );
+        $newFixtures = [
+            ['directory', 'users_alias', json_encode($aliasA)],
+            ['directory', 'users_alias', json_encode($aliasB)],
+        ];
         $fixturesClass->addFixtures($newFixtures);
 
         $newDir = new Directory('anyclient', $this->dataFile);
@@ -302,7 +333,7 @@ class DirectoryTest extends TestCase
 
         $expected = $userData;
         $msg = " *** Bad user data returned";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testUsersGet_ByAlias()
@@ -317,20 +348,20 @@ class DirectoryTest extends TestCase
         $aliasA = $this->getAliasFixture("users_alias1A@sil.org", $email, null);
         $aliasB = $this->getAliasFixture("users_alias1B@sil.org", $email, null);
         
-        $newFixtures = array(
-            array('directory', 'users_alias', json_encode($aliasA)),
-            array('directory', 'users_alias', json_encode($aliasB)),
-        );
+        $newFixtures = [
+            ['directory', 'users_alias', json_encode($aliasA)],
+            ['directory', 'users_alias', json_encode($aliasB)],
+        ];
         $fixturesClass->addFixtures($newFixtures);
         
         $newDir = new Directory('anyclient', $this->dataFile);
         $newUser = $newDir->users->get('users_alias1A@sil.org');
         
-        $this->assertNotNull(
+        self::assertNotNull(
             $newUser,
             'Failed to get user by an alias'
         );
-        $this->assertEquals(
+        self::assertEquals(
             $email,
             $newUser['primaryEmail'],
             'Failed to get correct user by an alias'
@@ -344,7 +375,7 @@ class DirectoryTest extends TestCase
 
         $primaryEmail = "user_test4@sil.org";
 
-        $userData = array(
+        $userData = [
             "changePasswordAtNextLogin" => false,
             "hashFunction" => "SHA-1",
             "id" => 999991,
@@ -353,8 +384,8 @@ class DirectoryTest extends TestCase
             "suspended" => false,
             "isEnforcedIn2Sv" => false,
             "isEnrolledIn2Sv" => true,
-            "aliases" => array(),
-        );
+            "aliases" => [],
+        ];
 
         $fixtures = $this->getFixtures();
         $fixturesClass->addFixtures($fixtures);
@@ -369,7 +400,7 @@ class DirectoryTest extends TestCase
         $results = $this->getProperties($newUser);
         $expected = $userData;
         $msg = " *** Bad user data returned";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
 
@@ -380,7 +411,7 @@ class DirectoryTest extends TestCase
 
         $userId = '999991';
 
-        $userData = array(
+        $userData = [
             "changePasswordAtNextLogin" => false,
             "hashFunction" => "SHA-1",
             "id" => $userId,
@@ -389,8 +420,8 @@ class DirectoryTest extends TestCase
             "suspended" => false,
             "isEnforcedIn2Sv" => false,
             "isEnrolledIn2Sv" => true,
-            "aliases" => array(),
-        );
+            "aliases" => [],
+        ];
 
         $fixtures = $this->getFixtures();
         $fixturesClass->addFixtures($fixtures);
@@ -405,7 +436,7 @@ class DirectoryTest extends TestCase
         $results = $this->getProperties($newUser);
         $expected = $userData;
         $msg = " *** Bad user data returned";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testUsersUpdate_WithAlias()
@@ -415,7 +446,7 @@ class DirectoryTest extends TestCase
 
         $primaryEmail = "user_test4@sil.org";
 
-        $userData = array(
+        $userData = [
             "changePasswordAtNextLogin" => false,
             "hashFunction" => "SHA-1",
             "id" => 999991,
@@ -424,8 +455,8 @@ class DirectoryTest extends TestCase
             "suspended" => false,
             "isEnrolledIn2Sv" => true,
             "isEnforcedIn2Sv" => false,
-            "aliases" => array('user_alias4B@sil.org'),
-        );
+            "aliases" => ['user_alias4B@sil.org'],
+        ];
 
         $fixtures = $this->getFixtures();
         $fixturesClass->addFixtures($fixtures);
@@ -440,7 +471,7 @@ class DirectoryTest extends TestCase
         $results = $this->getProperties($newUser);
         $expected = $userData;
         $msg = " *** Bad user data returned";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testUsersUpdate_WithDifferentAliases()
@@ -455,13 +486,13 @@ class DirectoryTest extends TestCase
             $primaryEmail,
             null
         );
-        $newFixtures = array(
-            array('directory', 'users_alias', json_encode($aliasFixture)),
-        );
+        $newFixtures = [
+            ['directory', 'users_alias', json_encode($aliasFixture)],
+        ];
         $fixturesClass->addFixtures($newFixtures);
 
         // Different aliases
-        $userData = array(
+        $userData = [
             "changePasswordAtNextLogin" => false,
             "hashFunction" => "SHA-1",
             "id" => 999991,
@@ -470,8 +501,8 @@ class DirectoryTest extends TestCase
             "suspended" => false,
             "isEnrolledIn2Sv" => true,
             "isEnforcedIn2Sv" => false,
-            "aliases" => array('user_alias4C@sil.org', 'user_alias4D@sil.org'),
-        );
+            "aliases" => ['user_alias4C@sil.org', 'user_alias4D@sil.org'],
+        ];
 
         $fixtures = $this->getFixtures();
         $fixturesClass->addFixtures($fixtures);
@@ -488,7 +519,7 @@ class DirectoryTest extends TestCase
         $expected = $userData;
 
         $msg = " *** Bad user data returned";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testUsersUpdate_NotThere()
@@ -498,14 +529,14 @@ class DirectoryTest extends TestCase
 
         $userId = 999999;
 
-        $userData = array(
+        $userData = [
             "changePasswordAtNextLogin" => false,
             "hashFunction" => "SHA-1",
             "id" => $userId,
             "password" => "testP4ss",
             "primaryEmail" => "user_test4@sil.org",
             "suspended" => false,
-        );
+        ];
 
         $fixtures = $this->getFixtures();
         $fixturesClass->addFixtures($fixtures);
@@ -536,25 +567,44 @@ class DirectoryTest extends TestCase
         $sqliteClass = new SqliteUtils($this->dataFile);
         $results = $sqliteClass->getData('', '');
 
-        $expected = array(
-            array('id' => 1, 'type' => 'directory', 'class' => 'user',
-                  'data' => '{"primaryEmail":"user_test1@sil.org",' .
-                              '"id":"999990"}'),
-            array('id' => 2, 'type' => 'directory', 'class' => 'users_alias',
-                  'data' => '{"alias":"users_alias2@sil.org","etag":null,' .
-                            '"id":null,"kind":null,' .
-                            '"primaryEmail":"user_test1@sil.org"}'),
-            array('id' => 3, 'type' => 'app_engine', 'class' => 'webapp',
-                  'data' => 'webapp3 test data'),
-            array('id' => 5, 'type' => 'directory', 'class' => 'user',
-                  'data' => 'user5 test data'),
-            array('id' => 6, 'type' => 'directory', 'class' => 'users_alias',
-                  'data' => '{"alias":"users_alias6@sil.org","etag":null,' .
-                  '"id":"1","kind":null,"primaryEmail":null}'),
-        );
+        $expected = [
+            [
+                'id' => 1,
+                'type' => 'directory',
+                'class' => 'user',
+                'data' => '{"primaryEmail":"user_test1@sil.org","id":"999990"}'
+            ],
+            [
+                'id' => 2,
+                'type' => 'directory',
+                'class' => 'users_alias',
+                'data' => '{"alias":"users_alias2@sil.org","etag":null,'
+                    . '"id":null,"kind":null,'
+                    . '"primaryEmail":"user_test1@sil.org"}'
+            ],
+            [
+                'id' => 3,
+                'type' => 'app_engine',
+                'class' => 'webapp',
+                'data' => 'webapp3 test data'
+            ],
+            [
+                'id' => 5,
+                'type' => 'directory',
+                'class' => 'user',
+                'data' => 'user5 test data'
+            ],
+            [
+                'id' => 6,
+                'type' => 'directory',
+                'class' => 'users_alias',
+                'data' => '{"alias":"users_alias6@sil.org","etag":null,'
+                    . '"id":"1","kind":null,"primaryEmail":null}'
+            ],
+        ];
 
         $msg = " *** Bad database data returned";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testUsersDelete_ById()
@@ -573,25 +623,44 @@ class DirectoryTest extends TestCase
         $sqliteClass = new SqliteUtils($this->dataFile);
         $results = $sqliteClass->getData('', '');
 
-        $expected = array(
-            array('id' => 1, 'type' => 'directory', 'class' => 'user',
-                'data' => '{"primaryEmail":"user_test1@sil.org",' .
-                    '"id":"999990"}'),
-            array('id' => 2, 'type' => 'directory', 'class' => 'users_alias',
-                'data' => '{"alias":"users_alias2@sil.org","etag":null,' .
-                    '"id":null,"kind":null,' .
-                    '"primaryEmail":"user_test1@sil.org"}'),
-            array('id' => 3, 'type' => 'app_engine', 'class' => 'webapp',
-                'data' => 'webapp3 test data'),
-            array('id' => 5, 'type' => 'directory', 'class' => 'user',
-                'data' => 'user5 test data'),
-            array('id' => 6, 'type' => 'directory', 'class' => 'users_alias',
-                'data' => '{"alias":"users_alias6@sil.org","etag":null,' .
-                    '"id":"1","kind":null,"primaryEmail":null}'),
-        );
+        $expected = [
+            [
+                'id' => 1,
+                'type' => 'directory',
+                'class' => 'user',
+                'data' => '{"primaryEmail":"user_test1@sil.org","id":"999990"}',
+            ],
+            [
+                'id' => 2,
+                'type' => 'directory',
+                'class' => 'users_alias',
+                'data' => '{"alias":"users_alias2@sil.org","etag":null,'
+                    . '"id":null,"kind":null,'
+                    . '"primaryEmail":"user_test1@sil.org"}',
+            ],
+            [
+                'id' => 3,
+                'type' => 'app_engine',
+                'class' => 'webapp',
+                'data' => 'webapp3 test data'
+            ],
+            [
+                'id' => 5,
+                'type' => 'directory',
+                'class' => 'user',
+                'data' => 'user5 test data'
+            ],
+            [
+                'id' => 6,
+                'type' => 'directory',
+                'class' => 'users_alias',
+                'data' => '{"alias":"users_alias6@sil.org","etag":null,'
+                    . '"id":"1","kind":null,"primaryEmail":null}',
+            ],
+        ];
 
         $msg = " *** Bad database data returned";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
 
@@ -615,7 +684,7 @@ class DirectoryTest extends TestCase
                     '"kind":"personal","primaryEmail":"user_test1@sil.org"}'
         ;
         $msg = " *** Bad returned alias";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
 
 
         $sqliteClass = new SqliteUtils($this->dataFile);
@@ -625,7 +694,7 @@ class DirectoryTest extends TestCase
         $results = $lastDataEntry['data'];
 
         $msg = " *** Bad data from sqlite database";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testUsersAliasesInsert_UserNotThere()
@@ -660,28 +729,28 @@ class DirectoryTest extends TestCase
             "1"
         );
 
-        $newFixtures = array(
-            array('directory', 'users_alias', json_encode($aliasFixture)),
-        );
+        $newFixtures = [
+            ['directory', 'users_alias', json_encode($aliasFixture)],
+        ];
         $fixturesClass->addFixtures($newFixtures);
 
         $newDir = new Directory('anyclient', $this->dataFile);
         $aliases = $newDir->users_aliases->listUsersAliases("user_test1@sil.org");
 
-        $results = array();
+        $results = [];
         foreach ($aliases['aliases'] as $nextAlias) {
             $results[] = json_encode($nextAlias);
         }
 
-        $expected = array(
+        $expected = [
             '{"alias":"users_alias2@sil.org","etag":null,"id":null,' .
               '"kind":null,"primaryEmail":"user_test1@sil.org"}',
             '{"alias":"users_alias7@sil.org","etag":null,"id":"1",' .
               '"kind":null,"primaryEmail":"user_test1@sil.org"}'
-        );
+        ];
 
         $msg = " *** Bad returned Aliases";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testUsersAliasesListUsersAliases_ID()
@@ -696,32 +765,34 @@ class DirectoryTest extends TestCase
         $aliasB = $this->getAliasFixture("users_alias7b@sil.org", $email, "7");
         $aliasC = $this->getAliasFixture("users_alias7c@sil.org", null, "7");
 
-        $newFixtures = array(
-            array('directory', 'user',
-                    '{"id":"7","primaryEmail":"' . $email . '",' .
-                     '"aliases":[]}'),
-            array('directory', 'users_alias', json_encode($aliasB)),
-            array('directory', 'users_alias', json_encode($aliasC)),
-        );
+        $newFixtures = [
+            [
+                'directory',
+                'user',
+                '{"id":"7","primaryEmail":"' . $email . '","aliases":[]}'
+            ],
+            ['directory', 'users_alias', json_encode($aliasB)],
+            ['directory', 'users_alias', json_encode($aliasC)],
+        ];
         $fixturesClass->addFixtures($newFixtures);
 
         $newDir = new Directory('anyclient', $this->dataFile);
         $aliases = $newDir->users_aliases->listUsersAliases("7");
 
-        $results = array();
+        $results = [];
         foreach ($aliases['aliases'] as $nextAlias) {
             $results[] = json_encode($nextAlias);
         }
 
-        $expected = array(
+        $expected = [
             '{"alias":"users_alias7b@sil.org","etag":null,"id":"7","kind":null,' .
                '"primaryEmail":"user_test7@sil.org"}',
             '{"alias":"users_alias7c@sil.org","etag":null,"id":"7","kind":null,' .
                '"primaryEmail":null}',
-        );
+        ];
 
         $msg = " *** Bad returned Aliases";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testUsersAliasesListUsersAliases_Structure()
@@ -734,9 +805,9 @@ class DirectoryTest extends TestCase
         $email = "user_test1@sil.org";
 
         $alias = $this->getAliasFixture("users_alias7@sil.org", $email, "1");
-        $newFixtures = array(
-            array('directory', 'users_alias', json_encode($alias)),
-        );
+        $newFixtures = [
+            ['directory', 'users_alias', json_encode($alias)],
+        ];
 
         $fixturesClass->addFixtures($newFixtures);
 
@@ -744,21 +815,21 @@ class DirectoryTest extends TestCase
         $aliases = $newDir->users_aliases->listUsersAliases("user_test1@sil.org");
 
         $results = isset($aliases['aliases']);
-        $this->assertTrue($results, ' *** The aliases property is not accessible');
+        self::assertTrue($results, ' *** The aliases property is not accessible');
 
         $results = is_array($aliases['aliases']);
-        $this->assertTrue($results, ' *** The aliases property is not an array');
+        self::assertTrue($results, ' *** The aliases property is not an array');
 
-        $user_aliases = array();
+        $user_aliases = [];
 
         foreach ($aliases['aliases'] as $alias) {
             $user_aliases[] = $alias['alias'];
         }
 
         $results = $user_aliases;
-        $expected = array("users_alias2@sil.org", "users_alias7@sil.org");
+        $expected = ["users_alias2@sil.org", "users_alias7@sil.org"];
         $msg = " *** Bad returned Aliases";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testUsersAliasesListUsersAliases_UserNotThere()
@@ -773,9 +844,9 @@ class DirectoryTest extends TestCase
             "user_test1@sil.org",
             "1"
         );
-        $newFixtures = array(
-            array('directory', 'users_alias', json_encode($alias)),
-        );
+        $newFixtures = [
+            ['directory', 'users_alias', json_encode($alias)],
+        ];
         $fixturesClass->addFixtures($newFixtures);
 
         $newDir = new Directory('anyclient', $this->dataFile);
@@ -795,9 +866,9 @@ class DirectoryTest extends TestCase
 
         $alias = $this->getAliasFixture("users_alias7@sil.org", $email, "1");
 
-        $newFixtures = array(
-            array('directory', 'users_alias', json_encode($alias)),
-        );
+        $newFixtures = [
+            ['directory', 'users_alias', json_encode($alias)],
+        ];
         $fixturesClass->addFixtures($newFixtures);
 
         $newDir = new Directory('anyclient', $this->dataFile);
@@ -806,26 +877,29 @@ class DirectoryTest extends TestCase
             "users_alias2@sil.org"
         );
 
-        $this->assertTrue($results, " *** Didn't appear to delete the alias.");
+        self::assertTrue($results, " *** Didn't appear to delete the alias.");
 
         $sqliteUtils = new SqliteUtils($this->dataFile);
         $results = $sqliteUtils->getData('directory', 'users_alias');
 
-        $expected = array(
-            array('id' => '6',
-                  'type' => 'directory',
-                  'class' => 'users_alias',
-                  'data' => '{"alias":"users_alias6@sil.org","etag":null,' .
-                            '"id":"1","kind":null,"primaryEmail":null}',
-            ),
-            array('id' => '7',
+        $expected = [
+            [
+                'id' => '6',
                 'type' => 'directory',
                 'class' => 'users_alias',
-                'data' => '{"alias":"users_alias7@sil.org","etag":null,' .
-                          '"id":"1","kind":null,"primaryEmail":"' . $email . '"}'),
-        );
+                'data' => '{"alias":"users_alias6@sil.org","etag":null,'
+                    . '"id":"1","kind":null,"primaryEmail":null}',
+            ],
+            [
+                'id' => '7',
+                'type' => 'directory',
+                'class' => 'users_alias',
+                'data' => '{"alias":"users_alias7@sil.org","etag":null,'
+                    . '"id":"1","kind":null,"primaryEmail":"' . $email . '"}'
+            ],
+        ];
         $msg = " *** Mismatching users_aliases in db";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testUserArrayAccess()
@@ -833,8 +907,8 @@ class DirectoryTest extends TestCase
         $user = new Google_Service_Directory_User();
         $user->suspended = false;
 
-        $this->assertFalse($user->suspended, ' *** class access failed');
-        $this->assertFalse($user['suspended'], ' *** array access failed');
+        self::assertFalse($user->suspended, ' *** class access failed');
+        self::assertFalse($user['suspended'], ' *** array access failed');
     }
 
     public function testUserClassAccess()
@@ -842,8 +916,8 @@ class DirectoryTest extends TestCase
         $user = new Google_Service_Directory_User();
         $user['suspended'] = false;
 
-        $this->assertFalse($user->suspended, ' *** class access failed');
-        $this->assertFalse($user['suspended'], ' *** array access failed');
+        self::assertFalse($user->suspended, ' *** class access failed');
+        self::assertFalse($user['suspended'], ' *** array access failed');
     }
 
     public function testAliasArrayAccess()
@@ -852,8 +926,8 @@ class DirectoryTest extends TestCase
         $email = 'user_test@sil.org';
         $alias->primaryEmail = $email;
 
-        $this->assertEquals($email, $alias->primaryEmail, ' *** class access failed');
-        $this->assertEquals($email, $alias['primaryEmail'], ' *** array access failed');
+        self::assertEquals($email, $alias->primaryEmail, ' *** class access failed');
+        self::assertEquals($email, $alias['primaryEmail'], ' *** array access failed');
     }
 
     public function testAliasClassAccess()
@@ -862,7 +936,7 @@ class DirectoryTest extends TestCase
         $email = 'user_test@sil.org';
         $alias['primaryEmail'] = $email;
 
-        $this->assertEquals($email, $alias->primaryEmail, ' *** class access failed');
-        $this->assertEquals($email, $alias['primaryEmail'], ' *** array access failed');
+        self::assertEquals($email, $alias->primaryEmail, ' *** class access failed');
+        self::assertEquals($email, $alias['primaryEmail'], ' *** array access failed');
     }
 }

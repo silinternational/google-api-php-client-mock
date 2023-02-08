@@ -19,7 +19,7 @@ class SqliteUtilsTest extends TestCase
         $results = $newSql->recordData('directory', 'user',
                        'test data');
         $msg = " *** Expected to add data successfully.";
-        $this->assertTrue($results, $msg);
+        self::assertTrue($results, $msg);
     }
 
     public function loadData()
@@ -89,7 +89,7 @@ class SqliteUtilsTest extends TestCase
             )
         );
         $msg = " *** Mismatched data results for all data.";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testGetData_Directory()
@@ -129,7 +129,7 @@ class SqliteUtilsTest extends TestCase
             )
         );
         $msg = " *** Mismatched data results for directory data.";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testGetData_DirectoryUser()
@@ -151,7 +151,7 @@ class SqliteUtilsTest extends TestCase
             ),
         );
         $msg = " *** Mismatched data results for user data.";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testGetData_NoMatches()
@@ -160,7 +160,7 @@ class SqliteUtilsTest extends TestCase
         $results = $newSql->getData('directory', 'no_there');
         $expected = array();
         $msg = " *** Mismatched data results for missing data.";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testGetData_EmptyFile()
@@ -172,7 +172,7 @@ class SqliteUtilsTest extends TestCase
         $results = $newSql->getData('', '');
         $expected = array();
         $msg = " *** Expected no data but got something.";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testGetRecordByDataKey_DirectoryUserId()
@@ -186,7 +186,7 @@ class SqliteUtilsTest extends TestCase
                            '"id":4,"password":"testPass4"}',
                     );
         $msg = " *** Mismatched data results for user data.";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testGetRecordByDataKey_DirectoryUserPrimaryEmail()
@@ -201,7 +201,7 @@ class SqliteUtilsTest extends TestCase
                 '"id":1,"password":"testPass1"}',
         );
         $msg = " *** Mismatched data results for user data.";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testGetAllRecordsByDataKey_DirectoryUsersAliasPrimaryEmail()
@@ -224,7 +224,7 @@ class SqliteUtilsTest extends TestCase
             ),
         );
         $msg = " *** Mismatched data results for user data.";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testDeleteAllData()
@@ -234,7 +234,7 @@ class SqliteUtilsTest extends TestCase
         $results = $newSql->getData('', '');
         $expected = array();
         $msg = " *** Mismatched data results for missing data.";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testDeleteRecordById()
@@ -275,7 +275,7 @@ class SqliteUtilsTest extends TestCase
             )
         );
         $msg = " *** Mismatched data results for remaining data.";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 
     public function testDeleteDataByEmail()
@@ -298,6 +298,6 @@ class SqliteUtilsTest extends TestCase
             ),
         );
         $msg = " *** Mismatched data results for remaining data.";
-        $this->assertEquals($expected, $results, $msg);
+        self::assertEquals($expected, $results, $msg);
     }
 }

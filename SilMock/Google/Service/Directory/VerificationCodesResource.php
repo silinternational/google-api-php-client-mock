@@ -2,19 +2,22 @@
 
 namespace SilMock\Google\Service\Directory;
 
+use Exception;
+use Google_Service_Directory_VerificationCode;
+use Google_Service_Directory_VerificationCodes;
 use SilMock\DataStore\Sqlite\SqliteUtils;
 use SilMock\Google\Service\Directory;
 
 class VerificationCodesResource
 {
 
-    private $_dbFile;  // string for the path (with file name) for the Sqlite database
+    private $dbfile;  // string for the path (with file name) for the Sqlite database
     private $_dataType = 'directory';  // string to put in the 'type' field in the database
     private $_dataClass = 'verification_codes'; // string to put in the 'class' field in the database
 
     public function __construct($dbFile = null)
     {
-        $this->_dbFile = $dbFile;
+        $this->dbfile = $dbFile;
     }
 
     /**
@@ -22,7 +25,7 @@ class VerificationCodesResource
      *
      * @param string|int $userKey The email or immutable Id of the user
      * @return true|null depending on if an alias was deleted
-     * @throws \Exception -- when account doesn't exist
+     * @throws Exception -- when account doesn't exist
      */
     public function invalidate($userKey)
     {
@@ -33,15 +36,15 @@ class VerificationCodesResource
         }
 
         // ensure that user exists in db
-        $dir = new Directory('anything', $this->_dbFile);
+        $dir = new Directory('anything', $this->dbfile);
         $matchingUser = $dir->users->get($userKey);
         if ($matchingUser === null) {
-            throw new \Exception("Account doesn't exist: " . $userKey);
+            throw new Exception("Account doesn't exist: " . $userKey);
         }
         $email = $matchingUser->getPrimaryEmail();
 
         // Confirm verification codes exist.
-        $sqliteUtils = new SqliteUtils($this->_dbFile);
+        $sqliteUtils = new SqliteUtils($this->dbfile);
         $verificationCodes = $sqliteUtils->getAllRecordsByDataKey(
             $this->_dataType,
             $this->_dataClass,
@@ -61,7 +64,7 @@ class VerificationCodesResource
      *     items set to all the listed verification codes for that user.
      *
      * @param string|int $userKey - The Email or immutable Id of the user
-     * @return \Google_Service_Directory_VerificationCodes
+     * @return Google_Service_Directory_VerificationCodes
      */
     public function listVerificationCodes($userKey)
     {
@@ -71,14 +74,14 @@ class VerificationCodesResource
             $key = 'id';
         }
 
-        $sqliteUtils = new SqliteUtils($this->_dbFile);
+        $sqliteUtils = new SqliteUtils($this->dbfile);
         $data = $sqliteUtils->getAllRecordsByDataKey(
             $this->_dataType,
             $this->_dataClass,
             $key,
             $userKey
         );
-        $verificationCodes = new \Google_Service_Directory_VerificationCodes();
+        $verificationCodes = new Google_Service_Directory_VerificationCodes();
         if (! empty($data)) {
             $verificationCodeData = $data[0]['data'];
             $decodedVerificationCodeData = json_decode($verificationCodeData, true);
@@ -99,9 +102,9 @@ class VerificationCodesResource
     {
 
         // generate 10 new verification codes.
-        $newVerificationCodes = new \Google_Service_Directory_VerificationCodes();
+        $newVerificationCodes = new Google_Service_Directory_VerificationCodes();
         for ($count = 0; $count < 10; ++$count) {
-            $newVerificationCode = new \Google_Service_Directory_VerificationCode();
+            $newVerificationCode = new Google_Service_Directory_VerificationCode();
             $newVerificationCode->verificationCode = mt_rand(10000000, 99999999);
             $after = $newVerificationCodes->getItems();
             $after[] = $newVerificationCode;
@@ -111,7 +114,7 @@ class VerificationCodesResource
         // invalidate the old ones.
         try {
             $this->invalidate($userKey);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // ignore it
         }
 
@@ -123,7 +126,7 @@ class VerificationCodesResource
         // save the new ones.
         $entryData = json_encode($keyedData);
         if ($entryData !== false) {
-            $sqliteUtils = new SqliteUtils($this->_dbFile);
+            $sqliteUtils = new SqliteUtils($this->dbfile);
             $sqliteUtils->recordData(
                 $this->_dataType,
                 $this->_dataClass,
