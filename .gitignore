@@ -3,7 +3,6 @@ nbproject/
 vendor/
 *.local.php
 build/
-.vagrant/
 .idea/
 composer.phar
 *.db
