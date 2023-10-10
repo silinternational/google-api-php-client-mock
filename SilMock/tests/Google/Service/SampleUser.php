@@ -26,13 +26,9 @@ trait SampleUser
         //  $newUser->$suspensionReason = ''; // string
 
         if ($withAliases) {
-            $newAliases = new Google_Service_Directory_Aliases();
-            $newAlias = new Google_Service_Directory_Alias();
-            $newAlias->alias = 'user_alias1@sil.org';
-            $newAlias->setKind("personal");
-            $newAlias->primaryEmail = $newUser->primaryEmail;
-            $newAliases->setAliases(array($newAlias));
-            $newUser->aliases = $newAliases; // bool
+            $newUser->aliases = [ 'user_alias1@sil.org', 'user_alias2@sil.org' ];
+        } else {
+            $newUser->aliases = [];
         }
 
         $newDir = new Directory('anyclient', $dataFile);

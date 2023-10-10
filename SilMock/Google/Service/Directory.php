@@ -7,6 +7,7 @@ use SilMock\Google\Service\Directory\Tokens;
 use SilMock\Google\Service\Directory\UsersResource;
 use SilMock\Google\Service\Directory\UsersAliasesResource;
 use SilMock\Google\Service\Directory\VerificationCodesResource;
+use SilMock\Google\Service\Directory\Resource\TwoStepVerification;
 
 class Directory
 {
@@ -15,6 +16,7 @@ class Directory
     public $users;
     public $users_aliases;
     public $verificationCodes;
+    public $twoStepVerification;
     
     /**
      * Sets the users and users_aliases properties to be instances of
@@ -30,5 +32,6 @@ class Directory
         $this->users = new UsersResource($dbFile);
         $this->users_aliases = new UsersAliasesResource($dbFile);
         $this->verificationCodes = new VerificationCodesResource($dbFile);
+        $this->twoStepVerification = new TwoStepVerification($dbFile);
     }
 }

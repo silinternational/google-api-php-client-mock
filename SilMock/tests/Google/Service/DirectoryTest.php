@@ -14,9 +14,9 @@ class DirectoryTest extends TestCase
 {
     use SampleUser;
 
-    public $dataFile = DATAFILE2;
+    public string $dataFile = DATAFILE2;
 
-    public function getProperties($object, $propKeys = null)
+    public function getProperties($object, $propKeys = null): array
     {
         if ($propKeys === null) {
             $propKeys = [
@@ -49,6 +49,7 @@ class DirectoryTest extends TestCase
             'users',
             'users_aliases',
             'verificationCodes',
+            'tokens',
         ];
         $errorMessage = " *** Directory was not initialized properly";
         
@@ -64,7 +65,7 @@ class DirectoryTest extends TestCase
 
     public function testUsersInsert()
     {
-        $newUser = $this->setupSampleUser($this->dataFile, false);
+        $newUser = $this->setupSampleUser($this->dataFile);
         $results = $this->getProperties($newUser);
 
         $expected = [
@@ -76,7 +77,7 @@ class DirectoryTest extends TestCase
             "suspended" => false,
             "isEnforcedIn2Sv" => false,
             "isEnrolledIn2Sv" => true,
-            "aliases" => null,
+            "aliases" => [],
         ];
         $msg = " *** Bad returned user";
         self::assertEquals($expected, $results, $msg);
@@ -88,28 +89,6 @@ class DirectoryTest extends TestCase
         $dataObj = json_decode($lastDataEntry['data']);
         $results = $this->getProperties($dataObj);
 
-        $expected = array (
-            "changePasswordAtNextLogin" => false,
-            "hashFunction" => "SHA-1",
-            "id" => 999991,
-            "password" => "testP4ss",
-            "primaryEmail" => "user_test1@sil.org",
-            "suspended" => false,
-            "isEnforcedIn2Sv" => false,
-            "isEnrolledIn2Sv" => true,
-            "aliases" => null,
-        );
-
-        $msg = " *** Bad data from sqlite database";
-        self::assertEquals($expected, $results, $msg);
-    }
-
-    public function testUsersInsert_WithAlias()
-    {
-        $newUser = $this->setupSampleUser($this->dataFile, true);
-
-        $results =  $this->getProperties($newUser);
-
         $expected = [
             "changePasswordAtNextLogin" => false,
             "hashFunction" => "SHA-1",
@@ -119,18 +98,29 @@ class DirectoryTest extends TestCase
             "suspended" => false,
             "isEnforcedIn2Sv" => false,
             "isEnrolledIn2Sv" => true,
-        ];
-        $expected['aliases'] = [
-            // This is an array representing the Google_Service_Directory_Alias object
-            [
-                'alias' => "user_alias1@sil.org",
-                'etag' => null,
-                'id' => null,
-                'kind' => 'personal',
-                'primaryEmail' => 'user_test1@sil.org',
-            ]
+            "aliases" => [],
         ];
 
+        $msg = " *** Bad data from sqlite database";
+        self::assertEquals($expected, $results, $msg);
+    }
+
+    public function testUsersInsert_WithAliases()
+    {
+        $newUser = $this->setupSampleUser($this->dataFile, true);
+
+        $results =  $this->getProperties($newUser);
+        $expected = [
+            "changePasswordAtNextLogin" => false,
+            "hashFunction" => "SHA-1",
+            "id" => 999991,
+            "password" => "testP4ss",
+            "primaryEmail" => "user_test1@sil.org",
+            "suspended" => false,
+            "isEnforcedIn2Sv" => false,
+            "isEnrolledIn2Sv" => true,
+            "aliases" => ["user_alias1@sil.org", "user_alias2@sil.org"],
+        ];
         $msg = " *** Bad returned user";
         self::assertEquals($expected, $results, $msg);
 
@@ -139,12 +129,12 @@ class DirectoryTest extends TestCase
         $sqliteData = $sqliteClass->getData('', '');
         $sqliteDataValues = array_values($sqliteData);
         $lastDataEntry = end($sqliteDataValues);
-        $lastAliases = json_decode($lastDataEntry['data'], true);
+        $lastAlias = json_decode($lastDataEntry['data'], true);
 
-        $results = $lastAliases['alias'];
+        $results = $lastAlias;
 
         $expected = [
-            "alias" => "user_alias1@sil.org",
+            "alias" => "user_alias2@sil.org",
             "kind" => "personal",
             "primaryEmail" => "user_test1@sil.org",
             'etag' => null,
@@ -155,7 +145,7 @@ class DirectoryTest extends TestCase
         self::assertEquals($expected, $results, $msg);
     }
 
-    public function getFixtures()
+    public function getFixtures(): array
     {
         $user4Data = '{"changePasswordAtNextLogin":false,' .
             '"hashFunction":"SHA-1",' .
@@ -173,7 +163,7 @@ class DirectoryTest extends TestCase
         $alias6->setAlias("users_alias6@sil.org");
         $alias6->setId("1");
 
-        $fixtures = [
+        return [
             [
                 'directory',
                 'user',
@@ -185,11 +175,9 @@ class DirectoryTest extends TestCase
             ['directory', 'user', 'user5 test data'],
             ['directory', 'users_alias', json_encode($alias6)],
         ];
-
-        return $fixtures;
     }
 
-    public function getAliasFixture($alias, $email, ?string $id)
+    public function getAliasFixture($alias, $email, ?string $id): Google_Service_Directory_Alias
     {
         $newAlias = new Google_Service_Directory_Alias();
         $newAlias->setAlias($alias);
@@ -520,7 +508,6 @@ class DirectoryTest extends TestCase
         
         $this->expectExceptionCode(201407101130);
         $newDir->users->update($userId, $newUser);
-        // the assert is in the doc comment
     }
 
     public function testUsersDelete()
@@ -684,7 +671,7 @@ class DirectoryTest extends TestCase
         $newDir = new Directory('anyclient', $this->dataFile);
         
         $this->expectExceptionCode(201407110830);
-        $newAlias = $newDir->users_aliases->insert("no_user@sil.org", $newAlias);
+        $newDir->users_aliases->insert("no_user@sil.org", $newAlias);
     }
 
     public function testUsersAliasesListUsersAliases_Email()
@@ -824,7 +811,7 @@ class DirectoryTest extends TestCase
         $newDir = new Directory('anyclient', $this->dataFile);
         
         $this->expectExceptionCode(201407101420);
-        $aliases = $newDir->users_aliases->listUsersAliases("no_user@sil.org");
+        $newDir->users_aliases->listUsersAliases("no_user@sil.org");
     }
 
     public function testUsersAliasesDelete()
