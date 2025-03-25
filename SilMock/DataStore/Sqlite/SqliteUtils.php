@@ -2,30 +2,33 @@
 
 namespace SilMock\DataStore\Sqlite;
 
+use Exception;
 use PDO;
+use SilMock\exceptions\SqliteUtilsBadDataClassException;
+use SilMock\exceptions\SqliteUtilsBadDataTypeException;
+use SilMock\exceptions\SqliteUtilsSqlAffectedNoRowsException;
+use SilMock\exceptions\SqliteUtilsSqlFailedException;
 
 class SqliteUtils
 {
     /**
-     * The PDO connection to the database (or null if unititialized).
-     * @var PDO|null
+     * The PDO connection to the database (or null if uninitialized).
      */
-    private $db = null;
+    private ?PDO $db = null;
 
     /**
      * The SQLite database file (path with file name).
-     * @var string
      */
-    private $dbFile;
+    private string $dbFile;
 
-    private $dbTable = 'google_service';
+    private string $dbTable = 'google_service';
 
     /**
-     *
      * If needed, this creates the sqlite database and/or its structure
-     * @param string $dbFile path and filename of the database for Mock Google
+     *
+     * @param string|null $dbFile path and filename of the database for Mock Google
      */
-    public function __construct($dbFile = null)
+    public function __construct(?string $dbFile = null)
     {
         // default database path
         $this->dbFile = __DIR__ . '/Google_Service_Data.db';
@@ -42,14 +45,14 @@ class SqliteUtils
      * A utility function to get the Google Mock data out of the data
      *     file using json_decode for a particular Google class
      *
-     * @param string $dataType, the name of a Google mock service (e.g. 'directory')
-     * @param string $dataClass, the name of a Google mock class (e.g. 'users_alias')
-     * @return null if exception or if no data for that class name,
+     * @param string $dataType -- the name of a Google mock service (e.g. 'directory')
+     * @param string $dataClass -- the name of a Google mock class (e.g. 'users_alias')
+     * @return array|null -- null if exception or if no data for that class name,
      *        otherwise the json_decode version of the Google mock data.
      *        If $dataType and $dataClass are not strings, returns everything
      *        from the data table.
      */
-    public function getData($dataType, $dataClass)
+    public function getData(string $dataType, string $dataClass): ?array
     {
         if (! file_exists($this->dbFile)) {
             return null;
@@ -58,11 +61,11 @@ class SqliteUtils
         $whereClause = '';
         $whereArray = array();
 
-        if (is_string($dataType) && $dataType) {
+        if (! empty($dataType)) {
             $whereClause = " WHERE type = :type";
             $whereArray[':type'] = $dataType;
 
-            if (is_string($dataClass) && $dataClass) {
+            if (! empty($dataClass)) {
                 $whereClause .= " AND class = :class";
                 $whereArray[':class'] = $dataClass;
             }
@@ -88,13 +91,13 @@ class SqliteUtils
     /**
      * Finds and returns the first record in the database that matches the input values.
      *
-     * @param $dataType string (e.g. "directory")
-     * @param $dataClass string (e.g. "user")
-     * @param $dataKey string|int  (e.g. "primaryEmail" or "id")
-     * @param $dataValue string
+     * @param string $dataType (e.g. "directory")
+     * @param string $dataClass (e.g. "user")
+     * @param string $dataKey  (e.g. "primaryEmail" or "id")
+     * @param string|int $dataValue
      * @return array|null -- array for the matching database entry, null otherwise
      */
-    public function getRecordByDataKey($dataType, $dataClass, $dataKey, $dataValue)
+    public function getRecordByDataKey(string $dataType, string $dataClass, string $dataKey, $dataValue): ?array
     {
         $allOfClass = $this->getData($dataType, $dataClass);
 
@@ -112,13 +115,13 @@ class SqliteUtils
     /**
      * Finds and returns all records in the database that matches the input values.
      *
-     * @param $dataType string (e.g. "directory")
-     * @param $dataClass string (e.g. "user")
-     * @param $dataKey string|int  (e.g. "primaryEmail" or "id")
-     * @param $dataValue string
+     * @param string $dataType (e.g. "directory")
+     * @param string $dataClass (e.g. "user")
+     * @param string $dataKey  (e.g. "primaryEmail" or "id")
+     * @param string|int $dataValue
      * @return array -- an array for the matching database entry
      */
-    public function getAllRecordsByDataKey($dataType, $dataClass, $dataKey, $dataValue)
+    public function getAllRecordsByDataKey(string $dataType, string $dataClass, string $dataKey, $dataValue): array
     {
         $allOfClass = $this->getData($dataType, $dataClass);
 
@@ -138,9 +141,10 @@ class SqliteUtils
 
     /**
      * Deletes the database record whose "id" field matches the input value
-     * @param $recordId int
+     *
+     * @param int $recordId
      */
-    public function deleteRecordById($recordId)
+    public function deleteRecordById(int $recordId): void
     {
         $this->runSql(
             "DELETE FROM " .  $this->dbTable . " WHERE id = :id",
@@ -153,24 +157,22 @@ class SqliteUtils
      * A utility function to delete the Google Mock data based on a
      * particular data type and data class for a specific email.
      *
-     * @param string $dataType, the name of a Google mock service (e.g. 'directory')
-     * @param string $dataClass, the name of a Google mock class (e.g. 'users_alias')
+     * @param string $dataType -- the name of a Google mock service (e.g. 'directory')
+     * @param string $dataClass -- the name of a Google mock class (e.g. 'users_alias')
      *        If empty, then all the matching $dataType records
      *          for the $emailAddress are deleted.
      *        If $dataType and $dataClass are empty strings, nothing is deleted.
      * @param string $emailAddress -- the primary email address.
-     * @return null
+     * @return void
      */
-    public function deleteDataByEmail(string $dataType, string $dataClass, string $emailAddress)
+    public function deleteDataByEmail(string $dataType, string $dataClass, string $emailAddress): void
     {
-        if (! file_exists($this->dbFile)) {
-            return null;
-        }
-        if (empty($dataType)) {
-            return null;
-        }
-        if (empty($emailAddress)) {
-            return null;
+        if (
+            ! file_exists($this->dbFile)
+            || empty($dataType)
+            || empty($emailAddress)
+        ) {
+            return;
         }
 
         $matchingRecords = $this->getAllRecordsByDataKey($dataType, $dataClass, 'primaryEmail', $emailAddress);
@@ -178,17 +180,16 @@ class SqliteUtils
             $id = $matchingRecord['id'];
             $this->deleteRecordById($id);
         }
-        return null;
     }
 
     /**
      * Updates the "data" field of the database record whose id field matches
      *     the input value
-     * @param $recordId int
-     * @param $newData string
+     * @param int $recordId
+     * @param string $newData
      * @return void
      */
-    public function updateRecordById($recordId, $newData): void
+    public function updateRecordById(int $recordId, string $newData): void
     {
         $this->runSql(
             "UPDATE " .  $this->dbTable . " SET data = :data WHERE id = :id",
@@ -199,11 +200,12 @@ class SqliteUtils
 
     /**
      * Deletes all records from the database table
-     * @return null
+     *
+     * @return void
      */
-    public function deleteAllData()
+    public function deleteAllData(): void
     {
-        return $this->runSql(
+        $this->runSql(
             "DELETE FROM " . $this->dbTable . " WHERE id > -1"
         );
     }
@@ -213,18 +215,18 @@ class SqliteUtils
      *
      * @param string $dataType The type of data e.g. "directory".
      * @param string $dataClass The class of data e.g. "user".
-     * @param string $data The data itself )in json format).
-     * @returns true if no errors/exceptions
-     * @throws \Exception
+     * @param string $data The data itself (in json format).
+     * @returns bool -- true if no errors/exceptions, exceptions otherwise
+     * @throws Exception
      */
-    public function recordData($dataType, $dataClass, $data)
+    public function recordData(string $dataType, string $dataClass, string $data): bool
     {
-        if (!is_string($dataType) || ($dataType == '')) {
-            throw new \Exception("No data type given when trying to record " .
+        if (empty($dataType)) {
+            throw new SqliteUtilsBadDataTypeException("No data type given when trying to record " .
                 "data.");
         }
-        if (!is_string($dataClass) || ($dataClass == '')) {
-            throw new \Exception("No data class given when trying to record " .
+        if (empty($dataClass)) {
+            throw new SqliteUtilsBadDataClassException("No data class given when trying to record " .
                 "data (data type: " . $dataType . ").");
         }
 
@@ -242,9 +244,10 @@ class SqliteUtils
     /**
      *  If the database file does not exist, creates it with an empty string
      *  with 0640 permissions.
-     * @returns null
+     *
+     * @returns void
      */
-    public function createDbIfNotExists()
+    public function createDbIfNotExists(): void
     {
         if (! file_exists($this->dbFile)) {
             file_put_contents($this->dbFile, '');
@@ -257,9 +260,10 @@ class SqliteUtils
      *    type (e.g. "directory"),
      *    class_name (e.g. "user"),
      *    data (json dump)
-     * @returns null
+     *
+     * @returns void
      */
-    public function createDbStructureAsNecessary()
+    public function createDbStructureAsNecessary(): void
     {
         // Make sure the database file exists.
         $this->createDbIfNotExists();
@@ -278,33 +282,33 @@ class SqliteUtils
      * Run the given SQL statement as a PDO prepared statement, using the given
      * array of data.
      *
-     * @param string $sql The SQL statement. Example: "SELECT * FROM table WHERE
-     * id = :id"
-     * @param array $data (Optional:) An associative array where the keys are
-     * the placeholders in the SQL statement. Example: array(':id' => 1).
+     * @param string $sql The SQL statement.
+     *                    Example: "SELECT * FROM table WHERE id = :id"
+     * @param array $data (Optional) An associative array where the keys are
+     * the placeholders in the SQL statement. Example: array(":id" => 1).
      * Defaults to an empty array (for when there are no placeholders in the
      * SQL statement).
-     * @param bool $confirmAffectedRows (Optional:) Whether to throw an
+     * @param bool $confirmAffectedRows (Optional) Whether to throw an
      * exception if PDOStatement::rowCount() indicates no rows were
      * affected. Defaults to false.
-     * @param bool $returnData (Optional:) Whether to retrieve (and return) the
+     * @param bool $returnData (Optional) Whether to retrieve (and return) the
      * resulting data by a call to PDOStatement::fetchAll($pdoFetchType).
      * Defaults to false.
-     * @param int $pdoFetchType (Optional:) The PDO FETCH_* constant defining
+     * @param int $pdoFetchType (Optional) The PDO FETCH_* constant defining
      * the desired return array configuration. See
      * http://www.php.net/manual/en/pdo.constants.php for options. Defaults
      * to PDO::FETCH_ASSOC.
      * @return array|null The array of returned results (if requested) as an
      * associative array, otherwise null.
-     * @throws \Exception
+     * @throws Exception
      */
     protected function runSql(
-        $sql,
-        $data = array(),
-        $confirmAffectedRows = false,
-        $returnData = false,
-        $pdoFetchType = PDO::FETCH_ASSOC
-    ) {
+        string $sql,
+        array $data = array(),
+        bool $confirmAffectedRows = false,
+        bool $returnData = false,
+        int $pdoFetchType = PDO::FETCH_ASSOC
+    ): ?array {
         // Make sure we're connected to the database.
         $this->setupDbConnIfNeeded();
 
@@ -317,14 +321,14 @@ class SqliteUtils
         // If the statement was NOT successful...
         if ($stmtSuccess === false) {
             // Indicate failure.
-            throw new \Exception('SQL statement failed: ' . $sql);
+            throw new SqliteUtilsSqlFailedException('SQL statement failed: ' . $sql);
 
             // If told to confirm that rows were affected
             // AND
             // if the statement didn't affect any rows...
         } elseif ($confirmAffectedRows && ($stmt->rowCount() < 1)) {
             // Indicate failure.
-            throw new \Exception('SQL statement affected no rows: ' . $sql);
+            throw new SqliteUtilsSqlAffectedNoRowsException('SQL statement affected no rows: ' . $sql);
         }
 
         // If told to return data, do so.
@@ -335,10 +339,9 @@ class SqliteUtils
         }
     }
 
-
-    protected function setupDbConnIfNeeded()
+    protected function setupDbConnIfNeeded(): void
     {
-        // If we have not yet setup the database connection...
+        // If we have not yet set up the database connection...
         if (is_null($this->db)) {
             // Make sure the database itself exists.
             $this->createDbIfNotExists();
@@ -346,7 +349,7 @@ class SqliteUtils
             // Connect to the SQLite database file.
             $this->db = new PDO('sqlite:' . $this->dbFile);
 
-            // Set errormode to exceptions.
+            // Set the error mode to exceptions.
             $this->db->setAttribute(
                 PDO::ATTR_ERRMODE,
                 PDO::ERRMODE_EXCEPTION
